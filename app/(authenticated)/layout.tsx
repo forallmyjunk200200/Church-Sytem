@@ -26,8 +26,14 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     );
   }
 
-  if (status !== "authenticated") {
-    return null;
+  if (status === "unauthenticated") {
+    return (
+      <div className="min-h-dvh bg-slate-50 dark:bg-slate-950">
+        <div className="mx-auto flex min-h-dvh max-w-6xl items-center px-4">
+          <Spinner label="Redirecting to login" />
+        </div>
+      </div>
+    );
   }
 
   return <AppShell>{children}</AppShell>;

@@ -29,6 +29,7 @@ function extractTokens(raw: unknown): Tokens | null {
   const accessToken =
     (typeof obj.access_token === "string" && obj.access_token) ||
     (typeof obj.accessToken === "string" && obj.accessToken) ||
+    (typeof obj.access === "string" && obj.access) ||
     (typeof obj.token === "string" && obj.token) ||
     null;
 
@@ -37,6 +38,7 @@ function extractTokens(raw: unknown): Tokens | null {
   const refreshToken =
     (typeof obj.refresh_token === "string" && obj.refresh_token) ||
     (typeof obj.refreshToken === "string" && obj.refreshToken) ||
+    (typeof obj.refresh === "string" && obj.refresh) ||
     undefined;
 
   return { accessToken, refreshToken };
@@ -53,6 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   const reloadSession = useCallback(async () => {
+    await Promise.resolve();
+
     const tokens = getStoredTokens();
     if (!tokens?.accessToken) {
       setUser(null);
@@ -72,31 +76,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void reloadSession();
+    const timer = window.setTimeout(() => {
+      void reloadSession();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [reloadSession]);
+
+  const requestLoginTokens = useCallback(async (email: string, password: string): Promise<Tokens> => {
+    const attempts: Array<() => Promise<unknown>> = [
+      async () => {
+        const body = new URLSearchParams();
+        body.set("username", email);
+        body.set("password", password);
+
+        return apiFetch<unknown>("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: body.toString(),
+          retryOnUnauthorized: false,
+        });
+      },
+      async () => {
+        return apiFetch<unknown>("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ username: email, password }),
+          retryOnUnauthorized: false,
+        });
+      },
+      async () => {
+        return apiFetch<unknown>("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+          retryOnUnauthorized: false,
+        });
+      },
+    ];
+
+    let lastError: unknown = null;
+
+    for (const attempt of attempts) {
+      try {
+        const data = await attempt();
+        const tokens = extractTokens(data);
+        if (tokens) return tokens;
+        lastError = new Error("Login response did not include tokens");
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("Login failed");
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     setStatus("loading");
 
     try {
-      const body = new URLSearchParams();
-      body.set("username", email);
-      body.set("password", password);
-
-      const data = await apiFetch<unknown>("/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: body.toString(),
-        retryOnUnauthorized: false,
-      });
-
-      const tokens = extractTokens(data);
-      if (!tokens) {
-        throw new Error("Login response did not include tokens");
-      }
-
+      const tokens = await requestLoginTokens(email, password);
       storeTokens(tokens);
       await reloadSession();
     } catch (err) {
@@ -105,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("unauthenticated");
       throw new Error(getErrorMessage(err));
     }
-  }, [reloadSession]);
+  }, [reloadSession, requestLoginTokens]);
 
   const register = useCallback(async (input: RegisterInput) => {
     setStatus("loading");
@@ -121,10 +168,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const tokens = extractTokens(data);
+
       if (tokens) {
         storeTokens(tokens);
+        await reloadSession();
+        return;
       }
 
+      const loginTokens = await requestLoginTokens(input.email, input.password);
+      storeTokens(loginTokens);
       await reloadSession();
     } catch (err) {
       clearStoredTokens();
@@ -132,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("unauthenticated");
       throw new Error(getErrorMessage(err));
     }
-  }, [reloadSession]);
+  }, [reloadSession, requestLoginTokens]);
 
   const logout = useCallback(() => {
     clearStoredTokens();

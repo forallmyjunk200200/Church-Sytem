@@ -41,6 +41,7 @@ function normalizeTokens(raw: unknown): Tokens | null {
   const accessToken =
     (typeof obj.access_token === "string" && obj.access_token) ||
     (typeof obj.accessToken === "string" && obj.accessToken) ||
+    (typeof obj.access === "string" && obj.access) ||
     (typeof obj.token === "string" && obj.token) ||
     null;
 
@@ -49,6 +50,7 @@ function normalizeTokens(raw: unknown): Tokens | null {
   const refreshToken =
     (typeof obj.refresh_token === "string" && obj.refresh_token) ||
     (typeof obj.refreshToken === "string" && obj.refreshToken) ||
+    (typeof obj.refresh === "string" && obj.refresh) ||
     undefined;
 
   return { accessToken, refreshToken };
