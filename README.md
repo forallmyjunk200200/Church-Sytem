@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend auth shell (Next.js)
 
-## Getting Started
+Authenticated dashboard experience built with Next.js App Router + TypeScript + Tailwind CSS.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configure FastAPI base URL
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The frontend calls the backend directly from the browser using `fetch`.
 
-## Learn More
+1. Copy the example env file:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.example .env.local
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Set the FastAPI base URL:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
 
-## Deploy on Vercel
+## Routes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Public:
+- `/login`
+- `/register`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Authenticated:
+- `/dashboard`
+- `/members` (directory list)
+- `/members/[memberId]` (member detail)
+- `/attendance` (check-in / check-out)
+- `/management` (staff/pastor only)
+
+## Roles and permissions
+
+The UI enables extra management actions for `pastor` and `staff` roles:
+- Management navigation module
+- Member list “Add member” placeholder action
+- Member detail “Set role” action (PATCH `/members/:id`)
+- Attendance page can log check-in/out for any member
+
+`member` and `guest` roles see read-only directory views and can only log their own attendance.
+
+## Responsive layout
+
+- Mobile-first layout with a compact top navigation.
+- At `sm` (≥ 640px), navigation switches to a full inline nav with user details.
+- Directory pages use responsive grids (`sm:grid-cols-2`, `lg:grid-cols-3`).
